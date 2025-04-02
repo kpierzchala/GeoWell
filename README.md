@@ -9,4 +9,6 @@ Tool will be useful for scientists, engineers and people from geothermal industr
 
 For more information please read the included manual.
 
+Documentation available on [Read the Docs](https://geowell.readthedocs.io/en/latest/).
+
 Also visit the [GeoModel](https://geomodel.pl/en/) project website where this tool has been developed.
