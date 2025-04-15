@@ -2,7 +2,7 @@
 # Affiliation: Mineral and Energy Economy Research Institute
 # Polish Academy of Sciences (MEERI PAS), Kraków, Poland
 # Date: March 2025
-# Version: 1.0
+# Version: 1.1
 # Welbore flow simulator (More information in the user's guide)
 # Calculator developed in the GeoModel project (https://geomodel.pl/en/)
 
