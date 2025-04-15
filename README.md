@@ -1,5 +1,5 @@
 # Geothermal well calculator
-## GeoWell v.1.0
+## GeoWell v.1.1
 
 Geothermal well calculator provides valuable information about wellhead temperature changes during the simulation.
 The calculator was created especially for users without programming skills. That is why all necessary input data need to be fulfilled in an Excel file.

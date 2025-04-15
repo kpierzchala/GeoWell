@@ -36,129 +36,13 @@ def c_heat(t, pressure, salt_mass_fraction):
     )
     return c_heat
 
-
 def density(t, pressure, salt_mass_fraction):
-    temperature = t - 273.15
-    try:
-        salt_molecular_weight = 58.44
-        water_molecular_weight = 18.01528
-
-        pbar = pressure / 1.0e5
-
-        xmol = ((salt_mass_fraction * 1000) / salt_molecular_weight) / (
-            ((salt_mass_fraction * 1000) / salt_molecular_weight)
-            + (((1 - salt_mass_fraction) * 1000) / water_molecular_weight)
-        )
-        xmol1 = 1.0 - xmol
-        xmol12 = xmol1 * xmol1
-        brine_molecular_weight = (xmol * salt_molecular_weight) + (
-            xmol1 * water_molecular_weight
-        )
-
-        n11 = -54.2958 - 45.7623 * np.exp((-9.44785e-4) * pbar)
-        n21 = -2.6142 - 0.000239092 * pbar
-        n22 = 0.0356828 + (4.37235e-6) * pbar + (2.0566e-9) * (pbar**2)
-
-        n1x1 = (
-            330.47
-            + 0.942876 * np.sqrt(pbar)
-            + 0.0817193 * pbar
-            - ((2.47556e-8) * (pbar**2))
-            + ((3.45052e-10) * (pbar**3))
-        )
-        n2x1 = (
-            -0.0370751
-            + 0.00237723 * np.sqrt(pbar)
-            + (5.42049e-5) * pbar
-            + (5.84709e-9) * (pbar**2)
-            - (5.99373e-13) * (pbar**3)
-        )
-
-        n10 = n1x1
-        n20 = 1.0 - n21 * np.sqrt(n22)
-        n12 = -n11 - n10
-        n23 = n2x1 - n20 - n21 * np.sqrt(1.0 + n22)
-
-        n1 = n10 + n11 * xmol1 + n12 * xmol12
-        n2 = n20 + n21 * np.sqrt(xmol + n22) + n23 * xmol
-
-        n300 = (7.60664e6) / ((pbar + 472.051) ** 2)
-        n301 = -50 - 86.1446 * math.exp((-6.21128e-4) * pbar)
-        n302 = 294.318 * math.exp((-5.66735e-3) * pbar)
-        n310 = -0.0732761 * math.exp((-2.3772e-3) * pbar) - (5.2948e-5) * pbar
-        n311 = -47.2747 + 24.3653 * math.exp((-1.25533e-3) * pbar)
-        n312 = -0.278529 - 0.00081381 * pbar
-
-        n31 = n310 * math.exp(n311 * xmol) + n312 * xmol
-        n30 = n300 * (math.exp(n301 * xmol) - 1) + n302 * xmol
-        D = n30 * math.exp(n31 * temperature)
-        tstar_v = n1 + n2 * temperature + D
-
-        if pressure <= cp.PropsSI("Water", "pcrit"):
-            ts = cp.PropsSI("T", "P", pressure, "Q", 0, "Water") - 273.15
-            extrapolate = tstar_v > ts
-        else:
-            extrapolate = False
-
-        def polynomial(coeffs, x):
-            return sum(c * x**i for i, c in enumerate(coeffs))
-
-        def extrapolation(pressure, pbar, ts, tstar_v, brine_molecular_weight):
-            dt = 0.2
-            water_molecular_weight = 18.01528
-
-            try:
-                props_s = cp.PropsSI(
-                    "D", "T", ts + 273.15, "P", pressure, "Water"
-                )
-                dws = props_s
-                vws = 1e3 * water_molecular_weight / dws
-
-                props_s1 = cp.PropsSI(
-                    "D", "T", (ts - dt) + 273.15, "P", pressure, "Water"
-                )
-                dws1 = props_s1
-                vws1 = 1e3 * water_molecular_weight / dws1
-
-                dvdt = (vws - vws1) / dt
-                logp = np.log(pbar)
-
-                o2 = polynomial(
-                    [
-                        2.0125e-7 + 3.29977e-9 * np.exp(-4.31279 * logp),
-                        -1.17748e-7,
-                        7.58009e-8,
-                    ],
-                    logp,
-                )
-                ts2 = ts * ts
-                o1 = dvdt - 3 * o2 * ts2
-                o0 = vws - ts * (o1 + o2 * ts2)
-                vb = polynomial([o0, o1, 0.0, o2], tstar_v)
-
-                return 1e3 * brine_molecular_weight / vb
-
-            except Exception as e:
-                print(f"An error occurred in extrapolation: {e}")
-                return None
-
-        if extrapolate:
-            brine_density = extrapolation(
-                pressure, pbar, ts, tstar_v, brine_molecular_weight
-            )
-        else:
-            d_H20 = cp.PropsSI(
-                "D", "T", tstar_v + 273.15, "P", pressure, "Water"
-            )
-            vm_H20 = (water_molecular_weight / 1000) / d_H20
-            vm_sol = vm_H20
-            rho = (brine_molecular_weight / 1000) / vm_sol
-        return rho
-
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        return None
-
+    T=t-273.15
+    P=pressure/1e6
+    S=salt_mass_fraction
+    Rho_TP=1+0.000001*(-80*T-3.3*T**2+0.00175*T**3+489*P-2*P*T+0.016*T**2*P-0.000013*T**3*P-0.333*P**2-0.002*T*P**2)    
+    Rho_TPS=(Rho_TP+S*(0.668+0.44*S+(0.000001*(300*S-2400*P*S+(T*(80+3*T-3300*S-13*P+47*P*S))))))*1000
+    return Rho_TPS
 
 def dyn_viscosity(t, p, s):
     rho_H2O = (cp.PropsSI("D", "T", t, "P", p, "Water")) / 1000
