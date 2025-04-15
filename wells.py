@@ -138,10 +138,6 @@ def prod_well(
         if n == 0:
             pbrine2[n] = pbrine1[n]
 
-        if n == 1:
-            print(
-                f"tbrine1[n]:{n}, {round(tbrine1[n],3)}, {round(pbrine1[n]/1e5,3)}, {dp_flow_res}"
-            )
 
         trock2[n] = third_type_boundary(
             n,
@@ -183,21 +179,6 @@ def prod_well(
         out[n, 4] = pbrine1[n]
         out[n, 5] = pbrine2[n]
         out[n, 6] = alfaB
-
-    df = pd.DataFrame(out)
-    df.to_excel(
-        "prod_well_output.xlsx",
-        index=False,
-        header=[
-            "trock",
-            "trock2",
-            "tbrine1",
-            "tbrine2",
-            "pbrine1",
-            "pbrine2",
-            "alfaB",
-        ],
-    )
 
     return [out, PR]
 
