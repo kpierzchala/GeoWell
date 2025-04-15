@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import fdm as fdm
 import wells as pw
+from numba import njit 
 
 # from openpyxl import load_workbook
 
@@ -553,7 +554,42 @@ def temp_after_dtime(nw, n2e, nc, mat, am, t, dtime, nodes_in_elements):
     tend = t[nw] + dt
     return tend
 
+def temp_after_dtime_vectorized(actvN, n2e, nc, mat, am, t, dtime, nodes_in_elements):
+    tend = t.copy()
+    max_jump = 5.0  # Maximum temperature change per step in °C
 
+    for i in range(len(actvN)):
+        idx = actvN[i]
+        NinE = nodes_in_elements[idx]
+
+        nw0 = n2e[NinE[1], 0]
+        nw1 = n2e[NinE[2], 1]
+        nw2 = n2e[NinE[0], 1]
+        nw3 = n2e[NinE[0], 3]
+
+        dx0 = nc[nw0, 2] - nc[idx, 2]
+        dx1 = nc[nw1, 1] - nc[idx, 1]
+        dx2 = nc[idx, 2] - nc[nw2, 2]
+        dx3 = nc[idx, 1] - nc[nw3, 1]
+
+        a_vals = [am[mat[NinE[j]], 1] for j in range(4)]
+
+        dtspeed = fdm.dtdtime(
+            [t[nw0], t[nw1], t[nw2], t[nw3], t[idx]],
+            [dx0, dx1, dx2, dx3],
+            a_vals,
+            nc[idx, 2]
+        )
+
+        deltaT = dtime * dtspeed
+        if deltaT > max_jump:
+            deltaT = max_jump
+        elif deltaT < -max_jump:
+            deltaT = -max_jump
+
+        tend[idx] = t[idx] + deltaT
+    return tend
+    
 def well_param(wws, time):
     A = np.zeros([3], dtype=float)
     n = 0
@@ -662,6 +698,7 @@ def prod_calculations(
     twell_1 = twell0
     counter = 0
     list_excel = []
+    well_out_list=[] # addition NB
     while (time + DtimeDynamic) <= wws[len(wws) - 1, 0]:
         if (time + dtime) > wws[k, 0]:
             DtimeDynamic = wws[k, 0] - time
@@ -688,6 +725,7 @@ def prod_calculations(
             am,
             nodes_in_elements,
         )
+        well_out_list.append(twellNe[0]) # addition NB
         twellNew = twellNe[0]
         PR = twellNe[1]
         PR.insert(0, time)
@@ -696,17 +734,11 @@ def prod_calculations(
         twellNew[0, 0] = twellNew[0, 1]
 
         tnew = disribute_temp_changes(t0, twellNew, twell0, NinWell, NfbB)
-        for nw in range(0, len(actvN)):
-            tnew[actvN[nw]] = temp_after_dtime(
-                actvN[nw],
-                n2e,
-                nc,
-                mat,
-                am,
-                tnew,
-                DtimeDynamic,
-                nodes_in_elements,
-            )
+        
+        tnew = temp_after_dtime_vectorized(
+            actvN, n2e, nc, mat, am, tnew, DtimeDynamic, nodes_in_elements
+        )
+        
         t0 = tnew
 
         for nw in nodes_top:
@@ -717,31 +749,13 @@ def prod_calculations(
 
         twell0 = twell_1
 
-        if (time + DtimeDynamic) >= wws[len(wws) - 1, 0]:
+        if n % 25 == 0 or (time + DtimeDynamic) >= wws[len(wws) - 1, 0]:
+            percent = 100.0 * time / wws[len(wws) - 1, 0]
+            label = "- 100.00% of expected time" if percent >= 100 else f"- {round(percent, 2)}% of time"
             print(
-                "- 100.00% of expected time (",
-                round(time / 3600.0, 2),
-                "hr) | time step length: ",
-                round(DtimeDynamic, 2),
-                " sec | bottom / wellhead temp. ",
-                round(twell_1[len(twell_1) - 1, 3], 2),
-                "/",
-                round(twell_1[0, 3], 2),
-                "°C",
-            )
-        else:
-            print(
-                "- ",
-                round(100.0 * time / wws[len(wws) - 1, 0], 2),
-                "% of time (",
-                round(time / 3600.0, 2),
-                "hr) | time step length: ",
-                round(DtimeDynamic, 2),
-                " sec | bottom / wellhead temp. ",
-                round(twell_1[len(twell_1) - 1, 3], 2),
-                "/",
-                round(twell_1[0, 3], 2),
-                "°C",
+                label,
+                f"({round(time / 3600.0, 2)} hr) | time step length: {round(DtimeDynamic, 2)} sec |",
+                f"bottom / wellhead temp. {round(twell_1[len(twell_1) - 1, 3], 2)}/{round(twell_1[0, 3], 2)} °C"
             )
 
         n = n + 1
@@ -768,8 +782,13 @@ def prod_calculations(
                 "alfaB",
             ],
         )
-        result.to_excel("wellhead_out_last_time.xlsx", index=False)
-
+    result.to_excel("wellhead_out_last_time.xlsx", index=False) 
+    out = np.vstack(well_out_list) 
+    df = pd.DataFrame(out, columns=[
+        "trock", "trock2", "tbrine1", "tbrine2", "pbrine1", "pbrine2", "alfaB"
+])
+    df.to_excel("prod_well_output.xlsx", index=False)
+    
     if show_graphic_results:
         tHead_time = np.array(tHeadTime)
         fig1, ax = plt.subplots()
@@ -834,7 +853,6 @@ def prod_calculations(
         cbar.set_label("Temperature [°C]")
         plt.show()
     return tnew
-
 
 def inj_well_guess_press_head(
     m,
