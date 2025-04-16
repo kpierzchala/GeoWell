@@ -547,7 +547,7 @@ def temp_after_dtime(nw, n2e, nc, mat, am, t, dtime, nodes_in_elements):
         [t[nw0], t[nw1], t[nw2], t[nw3], t[nw]],
         [dx0, dx1, dx2, dx3],
         a_vals,
-        nc[nw, 2],
+        nc[nw, 1],
     )
 
     dt = dtspeed * dtime
@@ -578,7 +578,7 @@ def temp_after_dtime_vectorized(actvN, n2e, nc, mat, am, t, dtime, nodes_in_elem
             [t[nw0], t[nw1], t[nw2], t[nw3], t[idx]],
             [dx0, dx1, dx2, dx3],
             a_vals,
-            nc[idx, 2]
+            nc[idx, 1]
         )
 
         deltaT = dtime * dtspeed
